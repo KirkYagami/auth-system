@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -18,7 +18,7 @@ class Token(Document):
     type: TokenType
     expires_at: datetime
     is_used: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "tokens"
@@ -29,7 +29,7 @@ class RefreshToken(Document):
     token: str
     expires_at: datetime
     is_revoked: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
         name = "refresh_tokens"

@@ -22,6 +22,11 @@ class User(Document):
     is_2fa_enabled: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Settings:
+    # How should this Python class behave inside MongoDB?
+    # It is database-level configuration for your model
+    class Settings: # Beanie model configuration class
         name = "users"
-        indexes = ["email"]
+        indexes = [
+        "email",
+        # [("email", 1), ("is_active", 1)],  # compound index
+    ]
