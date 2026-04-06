@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str
     EMAIL_FROM: str
 
+    # AWS S3
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+    AWS_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: str
+    S3_PROFILE_IMAGE_PREFIX: str = "profile-images"
+
     # App
     APP_NAME: str = "AuthEngine"
 

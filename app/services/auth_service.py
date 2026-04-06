@@ -24,6 +24,7 @@ from app.utils.email import (
     send_verification_email,
 )
 from app.utils.otp import generate_otp, generate_token, otp_expiry, token_expiry
+from app.utils.s3 import upload_profile_image
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,15 @@ async def reset_password(data: ResetPasswordRequest) -> dict:
 
     logger.info("Password reset for user: %s", user.email)
     return {"message": "Password reset successfully. Please log in again."}
+
+
+async def update_profile_image(user: User, file) -> dict:
+    from fastapi import UploadFile
+    url = await upload_profile_image(file, str(user.id))
+    user.profile_image_url = url
+    await user.save()
+    logger.info("Profile image updated for user: %s", user.email)
+    return {"message": "Profile image updated.", "profile_image_url": url}
 
 
 async def enable_2fa(user: User, data: Enable2FARequest) -> dict:

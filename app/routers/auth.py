@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 
 from app.core.dependencies import get_current_user, require_roles
 from app.models.user import User, UserRole
@@ -81,7 +81,16 @@ async def get_me(current_user: User = Depends(get_current_user)):
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
         is_2fa_enabled=current_user.is_2fa_enabled,
+        profile_image_url=current_user.profile_image_url,
     )
+
+
+@router.post("/me/profile-image", response_model=MessageResponse)
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    return await auth_service.update_profile_image(current_user, file)
 
 
 @router.get("/admin-only", response_model=MessageResponse)

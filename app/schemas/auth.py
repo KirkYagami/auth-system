@@ -81,3 +81,4 @@ class UserResponse(BaseModel):
     is_active: bool
     is_verified: bool
     is_2fa_enabled: bool
+    profile_image_url: Optional[str] = None

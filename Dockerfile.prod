@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1 — builder
+# Install dependencies into an isolated venv so nothing leaks into the final image
+# ─────────────────────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+# Don't write .pyc files, don't buffer stdout/stderr
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /build
+
+# Install only what's needed to compile C-extensions (bcrypt, cryptography)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create and activate a virtual environment inside the builder
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements first — layer is cached unless requirements.txt changes
+COPY requirements.txt .
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2 — runtime
+# Lean final image — no build tools, no compiler, no cache
+# ─────────────────────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Point PATH at the venv copied from the builder
+    PATH="/opt/venv/bin:$PATH"
+
+# Create a non-root user — never run apps as root in containers
+RUN groupadd --gid 1001 appgroup \
+ && useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser
+
+WORKDIR /app
+
+# Copy the fully built venv — no compiler or build deps come with it
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application source
+COPY --chown=appuser:appgroup app/ ./app/
+
+# Drop to non-root
+USER appuser
+
+EXPOSE 8000
+
+# Uvicorn: single worker is correct inside a container — scale via replicas
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

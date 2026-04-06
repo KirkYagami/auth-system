@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 
 from beanie import Document
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, HttpUrl
 
 
 class UserRole(str, Enum):
@@ -20,6 +20,7 @@ class User(Document):
     is_active: bool = False
     is_verified: bool = False
     is_2fa_enabled: bool = False
+    profile_image_url: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # How should this Python class behave inside MongoDB?
