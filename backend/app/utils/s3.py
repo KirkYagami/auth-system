@@ -27,6 +27,13 @@ async def upload_profile_image(file: UploadFile, user_id: str) -> str:
     Validate, upload image to S3, return the public HTTPS URL.
     Raises HTTPException on invalid file or upload failure.
     """
+    # ── Guard: AWS must be configured ────────────────────────────────────────
+    if not settings.AWS_ACCESS_KEY_ID or not settings.S3_BUCKET_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Image upload is not configured on this server.",
+        )
+
     # ── Validate content type ────────────────────────────────────────────────
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(

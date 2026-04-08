@@ -8,11 +8,9 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-secret}
-      MONGO_INITDB_DATABASE: ${DATABASE_NAME:-auth_db}
+      MONGO_INITDB_DATABASE:      ${DATABASE_NAME:-auth_db}
     volumes:
       - mongo_data:/data/db
-    ports:
-      - "27018:27017"          # expose for local tooling (Compass, mongosh)
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -22,41 +20,43 @@ services:
     networks:
       - auth_net
 
-  # ── FastAPI app (dev — hot reload via Dockerfile.dev) ────────────────────────
+  # ── FastAPI backend ───────────────────────────────────────────────────────────
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ./backend
+      dockerfile: Dockerfile.prod
     container_name: auth_api
     restart: unless-stopped
-    env_file:
-      - .env                   # real secrets — never committed
+    env_file: ./backend/.env
     environment:
-      # Override MONGO_URI to use the service name, not localhost
       MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-secret}@mongo:27017/${DATABASE_NAME:-auth_db}?authSource=admin
-      # AWS — passed through from .env
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
-      S3_PROFILE_IMAGE_PREFIX: ${S3_PROFILE_IMAGE_PREFIX:-profile-images}
-    volumes:
-      # Mount source for hot reload — only the app package, not root clutter
-      - ./app:/app/app
-    ports:
-      - "8000:8000"
+      # In prod the frontend is served by nginx on the same host — allow it
+      CORS_ORIGINS: "http://localhost,http://localhost:80,http://${HOST_IP:-localhost}"
     depends_on:
       mongo:
-        condition: service_healthy   # wait for mongo ping to succeed
+        condition: service_healthy
+    networks:
+      - auth_net
+    # Not exposed to host — nginx proxies /auth to it internally
+
+  # ── React frontend (nginx) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: auth_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
     networks:
       - auth_net
 
-# ── Persistent storage ────────────────────────────────────────────────────────
 volumes:
   mongo_data:
     driver: local
 
-# # ── Internal network ──────────────────────────────────────────────────────────
 networks:
   auth_net:
     driver: bridge
